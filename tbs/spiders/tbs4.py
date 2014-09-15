@@ -22,48 +22,68 @@ from tbs.items import TbsItem              # import self declared items
 from tbs.pmemcache import pmemcache
 
 
-class tbs1(BaseSpider):
-    name = 'tbs1'
+class tbs4(BaseSpider):
+    name = 'tbs4'
     defult_strip_start_tag = 'body'
     striptag=['scripts','script','style']
     default_encoding_confidence=0.9
     max_page=200
     default_crawl_stats='200'
     res=['?','+','.','#','^','*','{','}',',','(',')','<','>','...','!','|','\'']
+    keyword='棉粕'
 
 
-    def __init__(self,keyword):
+    def __init__(self):
         self.memcache = pmemcache()
+        self.databaseobject = initcrwal()
         self.start_urls=[]
-        self.keyword = keyword
-        #self.keyword = ['菜籽油 市场','玉米油','山茶籽油','调和油','麻油','豆油','低芥酸菜籽油','棕榈油','棉籽油','鲁花','中储粮','色拉油']
-        #self.keyword='菜籽油 市场'
-        for x in range(self.max_page):
-            #self.start_urls.append('http://www.baidu.com/s?wd=%E8%8F%9C%E7%B1%BD%E6%B2%B9+%E5%B8%82%E5%9C%BA&pn='+str(int(10*x)))
-            self.start_urls.append('http://www.baidu.com/s?wd='+self.keyword+'&pn='+str(int(10*x)))
-        #self.start_urls=['http://12582.10086.cn/sn/AgroInfo/Detail/12513322']
-        self.allowed_domains=[]
-
+        for x in range(1,11):
+            self.start_urls.append('http://www.100ppi.com/price/plist-497-'+str(x)+'.html')
+        self.allowed_domains=['100ppi.com']
 
 
     def parse(self,response):
-       links =[]
-       try:
-              linkextracts =  SgmlLinkExtractor(allow='^http://www\.baidu\.com/link\?.*',allow_domains=self.allowed_domains).extract_links(response)
-       except:
-              return
-       for link in linkextracts:
-              links.append(link.url)
-       #links.append(response.url) if response.url not in links else links
-       for l in links:
-            if self.memcache.get(self.get_url_hash_no_fragment(l)) != 1:
-                 yield Request(l,meta={'refer': response.url},callback=self.parse_detail,errback=self.parse_error)
-            else:
-                continue
+          links =[]
+          hxs = HtmlXPathSelector(response)
+          for x in range(2,31):
+            mname=(''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[1]/div/a/text()').extract())).strip()
+            if len(mname)>0:
+                style=''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[2]/text()').extract())
+                priceandunit=''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[3]/text()').extract())
+                unit = priceandunit[-3:len(priceandunit)]
+                price = priceandunit[:-3]
+                spec=(''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[4]/text()').extract())).lstrip()
+                spec =  spec[3:]if spec[0:2]=="用途" else spec
+                spec = spec.strip()
+                orgin=(''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[5]/div/text()').extract())).lstrip()
+                issuestime=''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[6]/text()').extract())
+                insertsql = 'INSERT INTO `mzb_price` ( `id` , `name` , `style` , `price` , `unit` , `spec` , `origin` , `issuestime` , `issuestimestamp`, `source` , `crawldate` )\
+                             VALUES (\
+                             NULL , \''+mname+'\', \''+style+'\', \''+price+'\', \''+unit+'\', \''+spec+'\', \''+orgin+'\', \''+issuestime+'\',\''+str(int(time.mktime(time.strptime(issuestime, "%Y-%m-%d"))))+'\'' \
+                             ', \''+response.url+'\', \''+self.to_GMT_timestamp(None)+'\'\
+                         )'
+
+                try:
+                   self.databaseobject.cursor.execute(insertsql)
+                   u = ''.join(hxs.select('//*[@class="lp-table mb15"]/tr['+str(x)+']/td[1]/div/a/@href').extract())
+
+                   links.append(self.completeURL(u,response.url))
+                   #mid = self.databaseobject.cursor.connection.insert_id()
+                except Exception as e:
+                   #mid = None
+                   print e
+                   pass
+          for l in links:
+               if self.memcache.get(self.get_url_hash_no_fragment(l)) != 1:
+                   yield Request(l,meta={'refer': response.url},callback=self.parse_detail,errback=self.parse_error)
+               else:
+                   continue
+
 
     def parse_detail(self,response):
           item = TbsItem()
           headers = response.headers
+          print response.url
           self.set_items_value(item,'character',self.get_page_character(response.body))
           self.set_items_value(item,'crawl_stats',self.default_crawl_stats)
           self.set_items_value(item,'searchkeywords',self.keyword)
@@ -113,57 +133,6 @@ class tbs1(BaseSpider):
         character = 'gbk' if character == 'gb2312' else character
         html=html.decode(character,'ignore').encode('utf-8')
         return html
-    '''
-    def strip_html_tags1(self,html,soupobject=None,frist=True):
-
-           if isinstance(html,Tag):
-               html = str(html)
-
-           if frist is True:
-               characterinfo = chardet.detect(html)
-               character = characterinfo['encoding'] if characterinfo['confidence']>=self.default_encoding_confidence and characterinfo else 'utf8'
-               character = 'gbk' if character == 'gb2312' else character
-               html=html.decode(character,'ignore').encode('utf-8')
-           else:
-               html = html.encode('utf-8')
-           soupobject = BeautifulSoup(html) if soupobject is None else soupobject
-           htmlbody = getattr(soupobject,self.defult_strip_start_tag)
-           try:
-                comments = htmlbody.findAll(text=lambda text:isinstance(text,Comment))  #get rid of html comment
-           except AttributeError as e:
-               print e
-               #return ''
-           [comment.extract() for comment in comments]
-           page = ''.join(htmlbody.findAll(text=True))
-           page = ' '.join(page.split())
-           print page
-
-           #print comments
-           rv=''
-           for x in htmlbody:
-               if isinstance(x,NavigableString) and x !='\n':
-                   rv = x if len(rv)==0 else str(rv)+' '+str(x)
-               elif isinstance(x,Tag) and x.name not in self.striptag:
-                   print x
-                   #rv = self.strip_html_tags1(x,frist=False) if len(rv)==0 else str(rv)+' '+str(self.html_tag_iterator(x))
-           return rv
-
-
-    def html_tag_iterator(self,htmlobject,):
-           rv=''
-           if isinstance(htmlobject,Tag) is False:
-               pass
-               #raise MYEXCEPTION('HTML_TYPE_ERROR')
-           else:
-               for x in htmlobject.contents:
-                   if isinstance(x,NavigableString) and x !='\n':
-                       rv = x if rv=='' else rv+' '+str(x)
-                       #print rv
-                   elif isinstance(x,Tag) and x.name not in self.striptag:
-                       rv = self.html_tag_iterator(x) if rv=='' else rv+' '+str(self.html_tag_iterator(x))
-           return rv
-
-    '''
     def set_items_value(self,itemobject,key,value):
            try:
                itemobject[key]=value
@@ -192,7 +161,32 @@ class tbs1(BaseSpider):
                return urlunparse((ob.scheme, ob.netloc, ob.path,ob.params, ob.query,'')) #take away url fragment
            except Exception:
                return url
+    def completeURL(self,href,domain):
+           try:
+               joinurl = urljoin(domain,href)
+               arr = urlparse(joinurl)
+               if arr.netloc == '':
+                   return href
+               path = normpath(arr.path)
+               return urlunparse((arr.scheme, arr.netloc, path, arr.params, arr.query, arr.fragment))
+           except Exception:
+               return href
 
+class initcrwal():
+     def __init__(self):
+         self.dbinfo={}
+         self.dbinfo['host']='localhost'
+         self.dbinfo['user']='root'
+         self.dbinfo['passwd']=''
+         self.dbinfo['db']='tbs1'
+
+         self.dbconn = MySQLdb.connect(host=self.dbinfo['host'],user=self.dbinfo['user'],passwd=self.dbinfo['passwd'],db=self.dbinfo['db'],charset="utf8")
+         self.cursor = self.dbconn.cursor()
+
+
+     def __del__(self):
+         self.cursor.close()
+         self.dbconn.close()
 
 
 

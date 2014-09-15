@@ -22,41 +22,48 @@ from tbs.items import TbsItem              # import self declared items
 from tbs.pmemcache import pmemcache
 
 
-class tbs1(BaseSpider):
-    name = 'tbs1'
-    defult_strip_start_tag = 'body'
-    striptag=['scripts','script','style']
+class tbs2(BaseSpider):
+    name = 'tbs2'
     default_encoding_confidence=0.9
     max_page=200
     default_crawl_stats='200'
     res=['?','+','.','#','^','*','{','}',',','(',')','<','>','...','!','|','\'']
+    default_memcache_live = 86400
 
 
-    def __init__(self,keyword):
-        self.memcache = pmemcache()
-        self.start_urls=[]
-        self.keyword = keyword
-        #self.keyword = ['菜籽油 市场','玉米油','山茶籽油','调和油','麻油','豆油','低芥酸菜籽油','棕榈油','棉籽油','鲁花','中储粮','色拉油']
-        #self.keyword='菜籽油 市场'
-        for x in range(self.max_page):
-            #self.start_urls.append('http://www.baidu.com/s?wd=%E8%8F%9C%E7%B1%BD%E6%B2%B9+%E5%B8%82%E5%9C%BA&pn='+str(int(10*x)))
-            self.start_urls.append('http://www.baidu.com/s?wd='+self.keyword+'&pn='+str(int(10*x)))
+    def __init__(self,starturl,keyword=None):
+        self.memcache = pmemcache(live=self.default_memcache_live)
+        self.outurl = None
+        #self.limit = limit if isinstance(limit,int) else None
+        self.limit = None
+        if isinstance(starturl,list):
+             self.start_urls=starturl
+        elif isinstance(starturl,str):
+             self.start_urls=[]
+             self.start_urls.append(starturl)
+        self.keyword = keyword if keyword is not None else ''
         #self.start_urls=['http://12582.10086.cn/sn/AgroInfo/Detail/12513322']
-        self.allowed_domains=[]
+        self.allowed_domains=[] if self.outurl is None else self.getdomain()
 
 
 
     def parse(self,response):
        links =[]
        try:
-              linkextracts =  SgmlLinkExtractor(allow='^http://www\.baidu\.com/link\?.*',allow_domains=self.allowed_domains).extract_links(response)
+              #linkextracts =  SgmlLinkExtractor(allow='^http://www\.baidu\.com/link\?.*',allow_domains=self.allowed_domains).extract_links(response)
+              linkextracts =  SgmlLinkExtractor(allow_domains=self.allowed_domains).extract_links(response)
        except:
               return
        for link in linkextracts:
               links.append(link.url)
        #links.append(response.url) if response.url not in links else links
+       count = 0
        for l in links:
+            if self.limit is not None and count > self.limit:
+                break
             if self.memcache.get(self.get_url_hash_no_fragment(l)) != 1:
+                 if self.limit is not None:
+                     count +=1
                  yield Request(l,meta={'refer': response.url},callback=self.parse_detail,errback=self.parse_error)
             else:
                 continue
@@ -184,7 +191,14 @@ class tbs1(BaseSpider):
 
     def parse_error(self,response):
            return response
-
+    def getdomain(self,url):
+        returnlist=[]
+        try:
+               ob = urlparse(url)
+               returnlist.append(urlunparse(('',ob.netloc,'','','','')))
+               return returnlist
+        except Exception:
+               return ' '
 
     def parseurl(self,url):
            try:

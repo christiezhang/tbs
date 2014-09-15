@@ -12,7 +12,7 @@ BOT_NAME = 'tbs'
 
 SPIDER_MODULES = ['tbs.spiders']
 NEWSPIDER_MODULE = 'tbs.spiders'
-#ITEM_PIPELINES  = ['tbs.pipelines.tbsPipeline']
+ITEM_PIPELINES  = ['tbs.pipelines.tbsPipeline']
 DOWNLOADER_MIDDLEWARES_BASE = {
     'scrapy.contrib.downloadermiddleware.robotstxt.RobotsTxtMiddleware': 100,
     'scrapy.contrib.downloadermiddleware.httpauth.HttpAuthMiddleware': 300,
@@ -35,9 +35,9 @@ METAREFRESH_DELAY = 100
 REDIRECT_MAX_TIMES = 20 # uses Firefox default setting
 REDIRECT_PRIORITY_ADJUST = +2
 SCHEDULER_ORDER = 'BFO'
-DOWNLOAD_DELAY = 2
+DOWNLOAD_DELAY = 5
 DOWNLOAD_TIMEOUT =180
-CONCURRENT_REQUESTS = 10
+CONCURRENT_REQUESTS = 20
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'TBS Spders '
 # Crawl responsibly by identifying yourself (and your website) on the user-agent

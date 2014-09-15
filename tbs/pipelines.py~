@@ -30,8 +30,6 @@ class tbsPipeline(object):
               #query = self.dbpool.runInteraction(self.discoveryspider_conditional_insert, item)
         if spider.name == 'tbs1':
               query = self.dbpool.runInteraction(self.tbs1_pipeline,item)
-        elif spider.name == 'tbs2' or spider.name == 'tbs3' or spider.name=='tbs4':
-              query = self.dbpool.runInteraction(self.tbs2_pipeline,item)
         #print item['stripedbody']
         return item
     def escape_str(self,v):     #not run at here,run@pipelines
@@ -58,22 +56,5 @@ class tbsPipeline(object):
             livetime = self.memcache.Memcache_default_live if int(item.get('Expires',0)) <= int(time.mktime(time.gmtime())) else int(item.get('Expires',0))-int(time.mktime(time.gmtime()))
             self.memcache.set(str(item.get('url_hash_no_fragment','')),self.memcache.Memcache_default_value,livetime)
         except Exception as dberror:
-            #tx.execute('insert into page_error_log (id,url,log,date)values(\' \',%s,%s,%s)',(str(item.get('url','')),self.escapt_str(str(dberror)),str(int(time.mktime(time.gmtime())))))
+            tx.execute('insert into page_error_log (id,url,log,date)values(\' \',%s,%s,%s)',(str(item.get('url','')),self.escapt_str(str(dberror)),str(int(time.mktime(time.gmtime())))))
             return
-
-    def tbs2_pipeline(self,tx,item):
-        try:
-            tx.execute('insert into `page_discover`(`id`,`url`,`character`,`spiderid`,`urlsetid`,`dbip`,`crawldate`,\
-                       `lastmodify`,`expired`,`refer`,`crawlstats`,`searchkeywords`,`dbname`,`title`,`keywords`,`description`,\
-                       `html`,`textcontent`) values (NULL,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',(str(item.get('url','')),\
-                        str(item.get('character','')),str(item.get('spiderid','')),str(item.get('urlsetid','')),str(self.dbip),\
-                        str(int(time.mktime(time.gmtime()))),str(item.get('LastModified','')),str(item.get('Expires','')),\
-                        str(item.get('refer','')),str(item.get('crawl_stats','')),self.escape_str(str(item.get('searchkeywords',''))),str(self.dbname),self.escape_str(str(item.get('title',''))),\
-                        self.escape_str(str(item.get('keyword',''))),self.escape_str(str(item.get('desc',''))),self.escape_str(str(item.get('body',''))),self.escape_str(str(item.get('stripedbody','')))))
-            #insertid = tx.connection.insert_id()      #if need
-            livetime = self.memcache.Memcache_discovery_spider_default_live if int(item.get('Expires',0)) <= int(time.mktime(time.gmtime())) else int(item.get('Expires',0))-int(time.mktime(time.gmtime()))
-            self.memcache.set(str(item.get('url_hash_no_fragment','')),self.memcache.Memcache_default_value,livetime)
-        except Exception as dberror:
-            #tx.execute('insert into page_error_log (id,url,log,date)values(\' \',%s,%s,%s)',(str(item.get('url','')),self.escapt_str(str(dberror)),str(int(time.mktime(time.gmtime())))))
-            return
-
